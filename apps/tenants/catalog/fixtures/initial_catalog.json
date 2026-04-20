@@ -1,0 +1,140 @@
+[
+    {
+    "model": "catalog.category",
+    "pk": 1,
+    "fields": { "name": "Caballero" }
+  },
+  {
+    "model": "catalog.category",
+    "pk": 2,
+    "fields": { "name": "Dama" }
+  },
+  {
+    "model": "catalog.category",
+    "pk": 3,
+    "fields": { "name": "Niño/Escolar" }
+  },
+  {
+    "model": "catalog.category",
+    "pk": 4,
+    "fields": { "name": "Zapatillas" }
+  },
+  {
+    "model": "catalog.category",
+    "pk": 5,
+    "fields": { "name": "Vans" }
+  },
+  {
+    "model": "catalog.category",
+    "pk": 6,
+    "fields": { "name": "Sport" }
+  },
+  {
+    "model": "catalog.category",
+    "pk": 7,
+    "fields": { "name": "Casual" }
+  },
+  {
+    "model": "catalog.category",
+    "pk": 8,
+    "fields": { "name": "Botas" }
+  },
+  {
+    "model": "catalog.category",
+    "pk": 9,
+    "fields": { "name": "Botines" }
+  },
+  {
+    "model": "catalog.category",
+    "pk": 10,
+    "fields": { "name": "Urbano" }
+  },
+  
+  {
+    "model": "catalog.size",
+    "pk": 1,
+    "fields": { "name": "Adulto", "description": "38-42" }
+  },
+  {
+    "model": "catalog.size",
+    "pk": 2,
+    "fields": { "name": "Juvenil", "description": "33-37" }
+  },
+  {
+    "model": "catalog.size",
+    "pk": 3,
+    "fields": { "name": "Pequeño", "description": "27-32" }
+  },
+  {
+    "model": "catalog.brand",
+    "pk": 1,
+    "fields": {
+      "category": 4,
+      "name": "Air Max",
+      "description": "Línea clásica con cámara de aire"
+    }
+  },
+  {
+    "model": "catalog.brand",
+    "pk": 2,
+    "fields": {
+      "category": 10,
+      "name": "Jordan Retro",
+      "description": "Modelos de alta gama"
+    }
+  },
+  {
+    "model": "catalog.brandvariant",
+    "pk": 1,
+    "fields": {
+      "brand": 1,
+      "size": 1,
+      "standard_price": "50.00"
+    }
+  },
+  {
+    "model": "catalog.brandvariant",
+    "pk": 2,
+    "fields": {
+      "brand": 1,
+      "size": 2,
+      "standard_price": "50.00"
+    }
+  },
+  {
+    "model": "catalog.brandvariant",
+    "pk": 3,
+    "fields": {
+      "brand": 1,
+      "size": 3,
+      "standard_price": "50.00"
+    }
+  },
+  {
+    "model": "catalog.brandvariant",
+    "pk": 4,
+    "fields": {
+      "brand": 2,
+      "size": 1,
+      "standard_price": "70.00"
+    }
+  },
+  {
+    "model": "catalog.brandvariant",
+    "pk": 5,
+    "fields": {
+      "brand": 2,
+      "size": 2,
+      "standard_price": "60.00"
+    }
+  },
+  {
+    "model": "catalog.brandvariant",
+    "pk": 6,
+    "fields": {
+      "brand": 2,
+      "size": 3,
+      "standard_price": "50.00"
+    }
+  }
+]

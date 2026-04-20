@@ -1,0 +1,29 @@
+[
+  {
+    "model": "payroll.workerrateoverride",
+    "pk": 1,
+    "fields": {
+      "worker": 2,
+      "brand_variant": 1,
+      "custom_price": "53.00"
+    }
+  },
+  {
+    "model": "payroll.workerrateoverride",
+    "pk": 2,
+    "fields": {
+      "worker": 2,
+      "brand_variant": 2,
+      "custom_price": "55.00"
+    }
+  },
+  {
+    "model": "payroll.workerrateoverride",
+    "pk": 3,
+    "fields": {
+      "worker": 2,
+      "brand_variant": 3,
+      "custom_price": "58.00"
+    }
+  }
+]

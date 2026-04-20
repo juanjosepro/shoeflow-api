@@ -29,12 +29,14 @@ SECRET_KEY = 'django-insecure-_kst_q*2$ov6h#jhsnir_h^r==baowb$*$4ba@c*o8y#0)qsqm
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '.localhost', '127.0.0.1']
 
 
 # Application definition
 
-INSTALLED_APPS = [
+SHARED_APPS = [
+    'django_tenants',
+    'apps.central.customers',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,7 +45,24 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 ]
 
+TENANT_APPS = [
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'rest_framework',
+    'apps.tenants.catalog',
+    'apps.tenants.staff',
+    'apps.tenants.production',
+    'apps.tenants.payroll',
+    'rest_framework.authtoken', # <--- Asegúrate de que esté esta línea
+]
+
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+
+TENANT_MODEL = 'customers.Client' 
+TENANT_DOMAIN_MODEL = 'customers.Domain'
+
 MIDDLEWARE = [
+    'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -83,7 +102,8 @@ DATABASES = {
     #     'NAME': BASE_DIR / 'db.sqlite3',
     # }
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        # 'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_tenants.postgresql_backend',
         'NAME': os.getenv('DB_NAME'),      # El nombre que pusimos en docker-compose
         'USER': os.getenv('DB_USER'),            # El usuario que pusimos en docker-compose
         'PASSWORD': os.getenv('DB_PASSWORD'),       # La contraseña que pusimos en docker-compose
@@ -91,6 +111,10 @@ DATABASES = {
         'PORT': os.getenv('DB_PORT'),             # El puerto estándar de Postgres
     }
 }
+
+DATABASE_ROUTERS = (
+    'django_tenants.routers.TenantSyncRouter',
+)
 
 
 # Password validation
@@ -133,3 +157,18 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        # Usaremos TokenAuthentication para la API
+        'rest_framework.authentication.TokenAuthentication',
+        # SessionAuthentication permite que el usuario siga usando el Browsable API mientras desarrolla
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        # Solo usuarios autenticados pueden acceder
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 15
+}
