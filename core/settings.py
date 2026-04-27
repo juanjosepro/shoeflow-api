@@ -60,6 +60,7 @@ INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in S
 
 TENANT_MODEL = 'customers.Client' 
 TENANT_DOMAIN_MODEL = 'customers.Domain'
+TENANT_CREATION_FAILS_CLEANUP = True
 
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware',
