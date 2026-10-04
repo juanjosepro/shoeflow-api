@@ -1,16 +1,16 @@
 from django.db import models
 from apps.tenants.staff.models import Worker
-from apps.tenants.catalog.models import BrandVariant
+from apps.tenants.catalog.models import ModelVariant
 
 class WorkerRateOverride(models.Model):
     worker = models.ForeignKey(Worker, on_delete=models.CASCADE, related_name='custom_prices')
-    brand_variant = models.ForeignKey(BrandVariant, on_delete=models.CASCADE)
-    # Este precio tiene PRIORIDAD sobre el standard_price de BrandVariant
+    model_variant = models.ForeignKey(ModelVariant, on_delete=models.CASCADE)
+    # Este precio tiene PRIORIDAD sobre el standard_price de ModelVariant
     custom_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
         # Evita que un mismo trabajador tenga dos precios para la misma variante
-        unique_together = ('worker', 'brand_variant')
+        unique_together = ('worker', 'model_variant')
 
 class PaymentSettlement(models.Model):
     worker = models.ForeignKey(Worker, on_delete=models.CASCADE, related_name='settlements')

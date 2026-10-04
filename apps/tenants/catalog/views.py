@@ -1,47 +1,39 @@
 from rest_framework import viewsets
-from .models import Category, Brand, Size, BrandVariant
-from .serializers import CategorySerializer, BrandSerializer, SizeSerializer, BrandVariantSerializer
+from .models import Category, Model, Size, ModelVariant
+from .serializers import CategorySerializer, ModelSerializer, SizeSerializer, ModelVariantSerializer
+from apps.common.mixins import OptionalPaginationMixin
 
-class CategoryViewSet(viewsets.ModelViewSet):
+class CategoryViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
-    @property
-    def pagination_class(self):
-        if self.request.query_params.get('no_pagination') == 'true':
-            return None
-        
-        return super().pagination_class
-
-class SizeViewSet(viewsets.ModelViewSet):
+class SizeViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset = Size.objects.all()
     serializer_class = SizeSerializer
 
-    @property
-    def pagination_class(self):
-        if self.request.query_params.get('no_pagination') == 'true':
-            return None
+class ModelViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
+    # OBLIGATORIO: Este nombre de variable DEBE ser 'queryset'. 
+    # DRF lo busca automáticamente para saber de qué tabla traer los registros.
+    queryset = (
+        Model.objects
+        .select_related('category')
+        .prefetch_related('variants__size')
+        .order_by('-id')
+    )
+    
+    # OBLIGATORIO: Este nombre de variable DEBE ser 'serializer_class'. 
+    # DRF lo usa por debajo para transformar los datos entre JSON y objetos de Base de Datos.
+    serializer_class = ModelSerializer
+
+class ModelVariantViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
+    serializer_class = ModelVariantSerializer
+
+    def get_queryset(self):
+        queryset = ModelVariant.objects.select_related('model__category', 'size')
+        # Capturamos el parámetro model_id de la URL (?model_id=1)
+        model_id = self.request.query_params.get('model_id')
         
-        return super().pagination_class
-
-class BrandViewSet(viewsets.ModelViewSet):
-    queryset = Brand.objects.all()
-    serializer_class = BrandSerializer
-
-    @property
-    def pagination_class(self):
-        if self.request.query_params.get('no_pagination') == 'true':
-            return None
-        
-        return super().pagination_class
-
-class BrandVariantViewSet(viewsets.ModelViewSet):
-    queryset = BrandVariant.objects.all()
-    serializer_class = BrandVariantSerializer
-
-    @property
-    def pagination_class(self):
-        if self.request.query_params.get('no_pagination') == 'true':
-            return None
-        
-        return super().pagination_class
+        if model_id:
+            queryset = queryset.filter(model_id=model_id)
+            
+        return queryset

@@ -1,14 +1,15 @@
 # apps/tenants/urls.py (o el archivo que agrupa tus módulos)
 from django.urls import path, include
 from rest_framework.authtoken import views
-from apps.tenants.staff.views import LogoutView
+from .views import LogoutView, CurrentUserView
 
 urlpatterns = [
-    # Ruta de login específica para cada Tenant
-    path('login/', views.obtain_auth_token, name='tenant_login'),
-    path('logout/', LogoutView.as_view(), name='logout'),
+    # Login route for each Tenant
+    path('auth/login/', views.obtain_auth_token, name='tenant_login'),
+    path('auth/logout/', LogoutView.as_view(), name='logout'),
+    path('auth/me/', CurrentUserView.as_view(), name='current-user'),
     
-    # El resto de tus módulos que ya configuramos
+    # Rest of your modules
     path('catalog/', include('apps.tenants.catalog.urls')),
     path('staff/', include('apps.tenants.staff.urls')),
     path('production/', include('apps.tenants.production.urls')),

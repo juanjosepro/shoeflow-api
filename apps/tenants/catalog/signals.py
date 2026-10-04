@@ -1,9 +1,9 @@
 from django.core.management import call_command
 
 def load_catalog_defaults(sender, **kwargs):
-    # Esto cargará el JSON automáticamente cada vez que se migre un esquema
+    # This will load the JSON automatically every time a schema is migrated
     try:
         call_command('loaddata', 'initial_catalog.json')
-        print("✅ Datos iniciales cargados correctamente.")
+        print("✅ Initial data loaded successfully.")
     except Exception as e:
-        print(f"⚠️ Nota: No se pudo cargar initial_catalog (esto es normal en la primera migración pública): {e}")
+        print(f"⚠️ Note: Failed to load initial_catalog (this is normal in the first public migration): {e}")

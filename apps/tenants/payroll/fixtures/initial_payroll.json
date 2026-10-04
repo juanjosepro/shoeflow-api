@@ -4,7 +4,7 @@
     "pk": 1,
     "fields": {
       "worker": 2,
-      "brand_variant": 1,
+      "model_variant": 1,
       "custom_price": "53.00"
     }
   },
@@ -13,7 +13,7 @@
     "pk": 2,
     "fields": {
       "worker": 2,
-      "brand_variant": 2,
+      "model_variant": 2,
       "custom_price": "55.00"
     }
   },
@@ -22,7 +22,7 @@
     "pk": 3,
     "fields": {
       "worker": 2,
-      "brand_variant": 3,
+      "model_variant": 3,
       "custom_price": "58.00"
     }
   }

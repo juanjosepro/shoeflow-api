@@ -48,6 +48,7 @@ SHARED_APPS = [
 TENANT_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
+    'corsheaders',
     'rest_framework',
     'apps.tenants.catalog',
     'apps.tenants.staff',
@@ -63,6 +64,7 @@ TENANT_DOMAIN_MODEL = 'customers.Domain'
 TENANT_CREATION_FAILS_CLEANUP = True
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -140,9 +142,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es-pe'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Lima'
 
 USE_I18N = True
 
@@ -173,3 +175,17 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 15
 }
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://.*\.localhost:5173$",
+    r"^http://.*\.localhost:3000$",
+]
+
+USE_X_FORWARDED_HOST = True
