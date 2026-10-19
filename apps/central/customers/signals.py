@@ -34,4 +34,4 @@ def create_tenant_admins(sender, **kwargs):
                 email=f'admin@gmail.com',
                 password='123456'
             )
-            print(f"✅ Usuarios creados exitosamente en el esquema: {instance.schema_name}")
+            print(f"✅ Initial admin users created successfully in schema: {instance.schema_name}")

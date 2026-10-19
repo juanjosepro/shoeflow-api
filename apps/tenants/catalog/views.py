@@ -1,39 +1,55 @@
+from django.db.models import ProtectedError
 from rest_framework import viewsets
-from .models import Category, Model, Size, ModelVariant
-from .serializers import CategorySerializer, ModelSerializer, SizeSerializer, ModelVariantSerializer
-from apps.common.mixins import OptionalPaginationMixin
+from rest_framework.exceptions import ValidationError
 
-class CategoryViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
+from apps.common.mixins import OptionalPaginationMixin, ActiveFilterMixin
+
+from .models import Category, Color, MaterialType, Model, PlantType, Size
+from .serializers import (
+    CategorySerializer,
+    ColorSerializer,
+    MaterialTypeSerializer,
+    ModelSerializer,
+    PlantTypeSerializer,
+    SizeSerializer,
+)
+
+class CatalogViewSet(OptionalPaginationMixin, ActiveFilterMixin, viewsets.ModelViewSet):
+    """Base del catálogo: si el registro está en uso responde 400 en vez de error 500."""
+ 
+    def perform_destroy(self, instance):
+        try:
+            instance.delete()
+        except ProtectedError:
+            raise ValidationError(
+                {"detail": "No se puede eliminar porque está en uso. Puedes desactivarlo en su lugar."}
+            )
+
+class CategoryViewSet(OptionalPaginationMixin, ActiveFilterMixin, viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
-class SizeViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
+
+class SizeViewSet(OptionalPaginationMixin, ActiveFilterMixin, viewsets.ModelViewSet):
     queryset = Size.objects.all()
     serializer_class = SizeSerializer
 
-class ModelViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    # OBLIGATORIO: Este nombre de variable DEBE ser 'queryset'. 
-    # DRF lo busca automáticamente para saber de qué tabla traer los registros.
-    queryset = (
-        Model.objects
-        .select_related('category')
-        .prefetch_related('variants__size')
-        .order_by('-id')
-    )
-    
-    # OBLIGATORIO: Este nombre de variable DEBE ser 'serializer_class'. 
-    # DRF lo usa por debajo para transformar los datos entre JSON y objetos de Base de Datos.
+
+class ModelViewSet(OptionalPaginationMixin, ActiveFilterMixin, viewsets.ModelViewSet):
+    # OBLIGATORIO: DRF busca 'queryset' y 'serializer_class' por esos nombres.
+    queryset = Model.objects.select_related('category').order_by('-created_at')
     serializer_class = ModelSerializer
 
-class ModelVariantViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    serializer_class = ModelVariantSerializer
-
-    def get_queryset(self):
-        queryset = ModelVariant.objects.select_related('model__category', 'size')
-        # Capturamos el parámetro model_id de la URL (?model_id=1)
-        model_id = self.request.query_params.get('model_id')
-        
-        if model_id:
-            queryset = queryset.filter(model_id=model_id)
-            
-        return queryset
+class MaterialTypeViewSet(CatalogViewSet):
+    queryset = MaterialType.objects.all()
+    serializer_class = MaterialTypeSerializer
+ 
+ 
+class ColorViewSet(CatalogViewSet):
+    queryset = Color.objects.all()
+    serializer_class = ColorSerializer
+ 
+ 
+class PlantTypeViewSet(CatalogViewSet):
+    queryset = PlantType.objects.all()
+    serializer_class = PlantTypeSerializer

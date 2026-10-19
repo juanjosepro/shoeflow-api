@@ -36,6 +36,7 @@ ALLOWED_HOSTS = ['localhost', '.localhost', '127.0.0.1']
 
 SHARED_APPS = [
     'django_tenants',
+    'django_extensions',
     'apps.central.customers',
     'django.contrib.admin',
     'django.contrib.auth',

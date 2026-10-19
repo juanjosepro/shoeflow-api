@@ -4,6 +4,6 @@ def load_staff_defaults(sender, **kwargs):
     # Esto cargará el JSON automáticamente cada vez que se migre un esquema
     try:
         call_command('loaddata', 'initial_staff.json')
-        print("✅ Datos iniciales cargados correctamente.")
+        print("✅ Initial staff data loaded successfully.")
     except Exception as e:
-        print(f"⚠️ Nota: No se pudo cargar initial_staff (esto es normal en la primera migración pública): {e}")
+        print(f"⚠️ Note: Failed to load initial_staff (this is normal during the first public migration). {e}")

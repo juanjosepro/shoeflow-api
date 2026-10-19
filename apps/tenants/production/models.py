@@ -1,119 +1,100 @@
-from django.db import models
-from apps.tenants.catalog.models import ModelVariant
-from apps.tenants.staff.models import Worker
-from apps.tenants.payroll.models import WorkerRateOverride, PaymentSettlement
 from datetime import timedelta
 from decimal import Decimal
 
-def validate_dozen_quantity(value):
-    """Solo permite 0.5 o un entero positivo (1, 2, 3...)."""
-    if value == Decimal('0.5'):
-        return
-    if value > 0 and value == value.to_integral_value():
-        return
-    raise ValidationError("La cantidad debe ser 0.5 o un número entero mayor a 0.")
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+
+from apps.tenants.catalog.models import Color, MaterialType, Model, PlantType, Size
+from apps.tenants.payroll.models import PaymentSettlement
+from apps.tenants.staff.models import Specialty, Worker
+
 
 class Dozen(models.Model):
+    """Un lote físico con su propio código. Normalmente 12 pares; puede tener menos."""
+
     class Status(models.TextChoices):
-        # 0. Inicio: Puede que el administrador registre primero y luego de la orden de iniciar el proceso
-        PENDING = 'PENDIENTE', 'Pendiente'
-        # 1. Inicio: El cortador recibe el material
-        CUTTING = 'CORTADO', 'Cortado'
-        # 2. Unión: Se cosen las piezas (Aparado)
-        STITCHING = 'APARADO', 'Aparado'
-        # 3. Forma: Se le da la forma sobre la horma (Armado)
-        ASSEMBLY = 'ARMADO', 'Armado'
-        # 4. Estética: Limpieza y detalles finales (Rematado)
-        FINISHING = 'REMATADO', 'Rematado'
-        # 5. Filtro: Revisión antes de almacén
-        QUALITY_CHECK = 'CONTROL_DE_CALIDAD', 'Control de Calidad'
-        # 6. Final: Listo para que el cliente lo compre
-        READY = 'LISTO_PARA_VENTA', 'Disponible para Venta'
-        COMPLETED = 'COMPLETADO', 'Completado'
-        # 7. Excepción: Por si hubo un problema grave
-        REJECTED = 'RECHAZADO/FALLA', 'Rechazado/Falla'
+        # La etapa en que va no se guarda aquí: se deduce de las asignaciones.
+        PENDING = "PENDIENTE", "Pendiente"  # registrada, sin etapas asignadas
+        IN_PROGRESS = "EN_PROCESO", "En proceso"  # automático con la primera asignación
+        COMPLETED = "COMPLETADO", "Completado"  # lo marca el administrador
+        REJECTED = "RECHAZADO", "Rechazado"  # falla grave: no admite asignaciones
 
-    class Materials(models.TextChoices):
-        LEATHER = 'CUERO', 'Cuero'
-        GAMUSA = 'GAMUSA', 'Gamusa'
-        SYNTHETIC = 'SINTETICO', 'Sintetico'
-        OTHER = 'OTRO', 'Otro'
+    class Priority(models.TextChoices):
+        LOW = "BAJA", "Baja"
+        NORMAL = "NORMAL", "Normal"
+        HIGH = "ALTA", "Alta"
+        URGENT = "URGENTE", "Urgente"
 
-    class Colors(models.TextChoices):
-        WHITE = 'BLANCO', 'Blanco'
-        BLACK = 'NEGRO', 'Negro'
-        DARK_GRAY = 'DARK_GRAY', 'darkgray'
-        TAN = 'TAN', 'tan'
-        SADDLE_BROWN = 'SADDLE_BROWN', 'saddlebrown'
-        GOLD = 'GOLD', 'gold'
-        STEEL_BLUE = 'STEEL_BLUE', 'steelblue'
-        OTHER = 'OTHER', 'Otro'
-
-    model_variant = models.ForeignKey(ModelVariant, on_delete=models.CASCADE)
-    code = models.CharField(max_length=255)
-    quantity = models.DecimalField(
-        max_digits=4, 
-        decimal_places=1, 
-        default=Decimal('1.0'),
-        validators=[validate_dozen_quantity],
-        help_text="Cantidad de docenas en este lote (ej: 1.0 = 12 pares, 0.5 = 6 pares)"
+    model = models.ForeignKey(Model, on_delete=models.PROTECT, related_name="dozens")
+    size = models.ForeignKey(Size, on_delete=models.PROTECT, related_name="dozens")
+    code = models.CharField(max_length=255, unique=True)  # Ej: AM-001
+    # Pares del lote (1 a 12). Fracción de docena = pairs / 12 (6 pares = 0.5)
+    pairs = models.PositiveSmallIntegerField(
+        default=12, validators=[MinValueValidator(1), MaxValueValidator(12)]
     )
-    material = models.CharField(max_length=50, choices=Materials.choices)
-    color = models.CharField(max_length=50, choices=Colors.choices)
+    material_type = models.ForeignKey(MaterialType, on_delete=models.PROTECT, related_name="dozens")
+    color = models.ForeignKey(Color, on_delete=models.PROTECT, related_name="dozens")
+    plant_type = models.ForeignKey(PlantType, on_delete=models.PROTECT, related_name="dozens")
+    priority = models.CharField(max_length=20, choices=Priority.choices, default=Priority.NORMAL)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     description = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     registered_at = models.DateTimeField()
-    # registration_group = models.CharField(
-    #     max_length=20,
-    #     db_index=True,
-    #     editable=False,
-    # )
+    # Agrupa las docenas creadas en un mismo registro
     registration_group = models.CharField(
-        max_length=20,
-        null=True,
-        blank=True,
-        db_index=True,
-        editable=False,
+        max_length=20, null=True, blank=True, db_index=True, editable=False
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Docena"
-        verbose_name_plural = "Dozen"
-        ordering = ["created_at"]
+        verbose_name_plural = "Docenas"
+        ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(pairs__gte=1, pairs__lte=12), name="dozen_pairs_between_1_and_12"
+            )
+        ]
+
+    @property
+    def fraction(self):
+        """Parte de docena que representa (pairs / 12). Se usa para calcular el pago."""
+        return Decimal(self.pairs) / Decimal(12)
 
     def __str__(self):
-        return f"{self.code} - {self.model_variant.model.name} {self.model_variant.size}"
+        return f"{self.code} - {self.model.name} {self.size} ({self.pairs} pares)"
+
 
 class DozenStageAssignment(models.Model):
-    class Stage(models.TextChoices):
-        CUTTING = 'CORTADO', 'Corte'
-        STITCHING = 'APARADO', 'Aparado'
-        ASSEMBLY = 'ARMADO', 'Armado'
-        FINISHING = 'REMATADO', 'Rematado'
-        QUALITY_CHECK = 'CONTROL_DE_CALIDAD', 'Control de Calidad'
+    """Quién hizo una etapa de una docena, cuándo y por cuánto."""
 
     class Status(models.TextChoices):
-        PENDING = 'PENDIENTE', 'Pendiente'
-        IN_PROGRESS = 'EN PROCESO', 'En Proceso'
-        COMPLETED = 'COMPLETADO', 'Completado'
-        CANCELED = 'CANCELADO', 'Cancelado'
+        PENDING = "PENDIENTE", "Pendiente"
+        IN_PROGRESS = "EN PROCESO", "En Proceso"
+        COMPLETED = "COMPLETADO", "Completado"
+        CANCELED = "CANCELADO", "Cancelado"
 
-    worker = models.ForeignKey(Worker, on_delete=models.PROTECT, related_name='dozen_assignments')
     dozen = models.ForeignKey(Dozen, on_delete=models.CASCADE, related_name="assignments")
-    stage = models.CharField(max_length=20, choices=Stage.choices)
+    # La etapa es una especialidad (las activas, en el orden de Specialty.order)
+    specialty = models.ForeignKey(Specialty, on_delete=models.PROTECT, related_name="dozen_assignments")
+    # Debe tener esa especialidad: lo valida el servicio, no la base de datos
+    worker = models.ForeignKey(Worker, on_delete=models.PROTECT, related_name="dozen_assignments")
+    # Vacío = pendiente de pago. Se llena al liquidar la semana.
     settlement = models.ForeignKey(
-        PaymentSettlement, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        related_name='items'
+        PaymentSettlement, on_delete=models.SET_NULL, null=True, blank=True, related_name="items"
     )
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
-    delivered_at = models.DateTimeField(null=True, blank=True)   # cuando se le entregó al worker
-    completed_at = models.DateTimeField(null=True, blank=True)   # cuando terminó
+    # En el flujo masivo siempre queda Completado
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.COMPLETED)
+    # Siempre se llenan. delivered_at nunca es posterior a completed_at
+    # (lo garantiza el CheckConstraint; el servicio lo valida antes para dar un mensaje claro).
+    delivered_at = models.DateField()
+    completed_at = models.DateField()  # Define a qué semana de pago pertenece
+    # Se fijan al guardar: un cambio de tarifas NO altera lo ya registrado.
+    # unit_price = tarifa base resuelta + WorkerRateExtra.extra_price (por docena completa)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    # amount = unit_price x pairs / 12 (lo que se le paga por esta etapa)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -121,58 +102,33 @@ class DozenStageAssignment(models.Model):
     class Meta:
         verbose_name = "Asignación de etapa"
         verbose_name_plural = "Asignaciones de etapas"
-        ordering = ["created_at"]
+        ordering = ["dozen", "specialty__order"]
+        constraints = [
+            models.UniqueConstraint(fields=["dozen", "specialty"], name="unique_assignment_dozen_specialty"),
+            # Django 5.0: el argumento es check=. En 5.1+ pasa a condition=.
+            models.CheckConstraint(
+                check=models.Q(delivered_at__lte=models.F("completed_at")),
+                name="assignment_delivered_not_after_completed",
+            ),
+            models.CheckConstraint(check=models.Q(amount__gte=0), name="assignment_amount_not_negative"),
+        ]
 
     def __str__(self):
-        return f"{self.dozen.code} docenas - {self.worker.names}"
-
-    @property
-    def calculate_payment(self):
-        # 1. Buscamos el precio por docena (estándar o personalizado)
-        override = WorkerRateOverride.objects.filter(
-            worker=self.worker, 
-            model_variant=self.dozen.model_variant
-        ).first()
-        
-        price_per_dozen = override.custom_price if override else self.dozen.model_variant.standard_price
-        
-        # 2. Multiplicamos por la cantidad real que trae el lote (Dozen)
-        # S/ 60.00 * 0.5 = S/ 30.00
-        return price_per_dozen * self.dozen.quantity
+        return f"{self.dozen.code} - {self.specialty.name} - {self.worker.names}"
 
     @property
     def week_identifier(self):
-        """
-        Retorna un string único para agrupar: '2026-W16'
-        """
-        if self.created_at:
-            # Obtenemos el año y el número de semana ISO
-            year, week, weekday = self.created_at.isocalendar()
-            return f"{year}-W{week:02d}"
-        return None
+        """Semana ISO del trabajo realizado, ej. '2026-W41'."""
+        year, week, _ = self.completed_at.isocalendar()
+        return f"{year}-W{week:02d}"
 
     @property
     def week_label(self):
-        """
-        Retorna un rango de fechas amigable: 'Del 13 de abril al 19 de abril'
-        """
-        if not self.created_at:
-            return "Sin fecha"
-            
-        # 1. Encontrar el lunes de esa semana
-        # weekday() devuelve 0 para lunes, 6 para domingo
-        monday = self.created_at.date() - timedelta(days=self.created_at.weekday())
+        """Rango legible de la semana, ej. 'Del 5 de octubre al 11 de octubre'."""
+        monday = self.completed_at - timedelta(days=self.completed_at.weekday())
         sunday = monday + timedelta(days=6)
-        
-        # 2. Diccionario para meses en español (opcional si no tienes locale configurado)
         meses = {
-            1: "enero", 2: "febrero", 3: "marzo", 4: "abril",
-            5: "mayo", 6: "junio", 7: "julio", 8: "agosto",
-            9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"
+            1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio",
+            7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre",
         }
-
-        # 3. Formatear el string
-        inicio = f"{monday.day} de {meses[monday.month]}"
-        fin = f"{sunday.day} de {meses[sunday.month]}"
-        
-        return f"Del {inicio} al {fin}"
+        return f"Del {monday.day} de {meses[monday.month]} al {sunday.day} de {meses[sunday.month]}"

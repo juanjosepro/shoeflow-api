@@ -1,173 +1,159 @@
-import uuid
-from rest_framework import serializers
-from .models import Dozen, DozenStageAssignment
-from decimal import Decimal
 from django.db import transaction
-from apps.tenants.catalog.models import ModelVariant
-from apps.tenants.staff.serializers import WorkerSerializer
-from apps.tenants.catalog.serializers import ModelVariantSerializer
+from rest_framework import serializers
+
+from apps.tenants.catalog.models import Color, MaterialType, Model, PlantType, Size
+from apps.tenants.catalog.serializers import (
+    ColorSerializer,
+    MaterialTypeSerializer,
+    ModelSerializer,
+    PlantTypeSerializer,
+    SizeSerializer,
+)
+from apps.tenants.staff.models import Specialty, Worker
+
+from . import services
+from .models import Dozen, DozenStageAssignment
+
+
+class WorkerMiniSerializer(serializers.Serializer):
+    """Versión ligera del trabajador para listas de asignaciones (evita consultas extra)."""
+
+    id = serializers.IntegerField()
+    names = serializers.CharField()
+    is_active = serializers.BooleanField()
+
+
+class SpecialtyMiniSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    order = serializers.IntegerField()
 
 
 class DozenStageAssignmentSerializer(serializers.ModelSerializer):
-    worker = WorkerSerializer(read_only=True)
-    # dozen = DozenSerializer(read_only=True)
+    """Solo lectura: las asignaciones se crean con POST /dozens/{id}/assign-stages/."""
+
+    dozen_code = serializers.CharField(source='dozen.code', read_only=True)
+    specialty = SpecialtyMiniSerializer(read_only=True)
+    worker = WorkerMiniSerializer(read_only=True)
     week_identifier = serializers.ReadOnlyField()
     week_label = serializers.ReadOnlyField()
-    total_payment = serializers.ReadOnlyField(source='calculate_payment')
 
     class Meta:
         model = DozenStageAssignment
-        # 'dozen',
         fields = [
-            'id', 'worker',  'stage', 'status', 
+            'id', 'dozen', 'dozen_code', 'specialty', 'worker', 'status',
             'delivered_at', 'completed_at',
-            'week_identifier', 'week_label', 'total_payment',
-            'created_at', 'settlement'
+            'unit_price', 'amount',
+            'week_identifier', 'week_label',
+            'settlement', 'description', 'created_at',
         ]
+        read_only_fields = fields
 
 
 class DozenSerializer(serializers.ModelSerializer):
-    variant = ModelVariantSerializer(source='model_variant', read_only=True)
-    assignments = DozenStageAssignmentSerializer(
-        many=True,
-        read_only=True
+    # Lectura: objetos completos. Escritura: solo el id (model_id / size_id).
+    model = ModelSerializer(read_only=True)
+    model_id = serializers.PrimaryKeyRelatedField(
+        queryset=Model.objects.all(), source='model', write_only=True
     )
-    model_variant_id = serializers.PrimaryKeyRelatedField(
-        queryset=ModelVariant.objects.all(),
-        source='model_variant',
-        write_only=True
+    size = SizeSerializer(read_only=True)
+    size_id = serializers.PrimaryKeyRelatedField(
+        queryset=Size.objects.all(), source='size', write_only=True
     )
-    worker_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    material_type = MaterialTypeSerializer(read_only=True)
+    material_type_id = serializers.PrimaryKeyRelatedField(
+        queryset=MaterialType.objects.all(), source='material_type', write_only=True
+    )
+    color = ColorSerializer(read_only=True)
+    color_id = serializers.PrimaryKeyRelatedField(
+        queryset=Color.objects.all(), source='color', write_only=True
+    )
+    plant_type = PlantTypeSerializer(read_only=True)
+    plant_type_id = serializers.PrimaryKeyRelatedField(
+        queryset=PlantType.objects.all(), source='plant_type', write_only=True
+    )
+    # Fracción de docena (pairs / 12), solo lectura
+    fraction = serializers.DecimalField(max_digits=5, decimal_places=4, read_only=True)
+    assignments = DozenStageAssignmentSerializer(many=True, read_only=True)
+    # Avance: etapas activas asignadas / etapas activas totales
+    assigned_stages = serializers.SerializerMethodField()
+    total_stages = serializers.SerializerMethodField()
     code = serializers.CharField(read_only=True)
     registration_group = serializers.CharField(read_only=True)
+    # Solo al crear: cuántas docenas idénticas (cada una con su propio código)
+    count = serializers.IntegerField(write_only=True, required=False, default=1, min_value=1, max_value=100)
+
+    # Campos que fijan el precio de las etapas: no cambian si ya hay asignaciones
+    PRICE_FIELDS = ('model', 'size', 'pairs', 'material_type', 'plant_type')
 
     class Meta:
         model = Dozen
         fields = [
-            'id', 'model_variant_id', 'variant', 'code', 'quantity', 
-            'material', 'color', 'status', 'description', 
-            'is_active', 'registered_at', 'registration_group', 'created_at', 'worker_id', 'assignments'
+            'id', 'model', 'model_id', 'size', 'size_id', 'code', 'pairs', 'fraction',
+            'material_type', 'material_type_id', 'color', 'color_id', 'plant_type', 'plant_type_id', 'priority', 'status', 'description',
+            'is_active', 'registered_at', 'registration_group', 'created_at',
+            'count', 'assignments', 'assigned_stages', 'total_stages',
         ]
+        # El estado solo cambia por las acciones de asignar, completar, rechazar y reabrir
+        read_only_fields = ['status']
+
+    def get_total_stages(self, obj):
+        # Se calcula una sola vez por respuesta (el serializer hijo se comparte en listas)
+        if not hasattr(self, '_total_stages'):
+            self._total_stages = Specialty.objects.filter(is_active=True).count()
+        return self._total_stages
+
+    def get_assigned_stages(self, obj):
+        # Usa las asignaciones ya precargadas, sin consultas extra
+        return sum(1 for a in obj.assignments.all() if a.specialty.is_active)
+
+    def validate(self, attrs):
+        if self.instance and self.instance.assignments.exists():
+            changed = [
+                f for f in self.PRICE_FIELDS
+                if f in attrs and attrs[f] != getattr(self.instance, f)
+            ]
+            if changed:
+                raise serializers.ValidationError(
+                    f"La docena ya tiene etapas asignadas; no se puede cambiar: {', '.join(changed)}."
+                )
+        return attrs
 
     def create(self, validated_data):
-        print("REQUEST DATA:", self.initial_data)
-        # 1. Extraemos los datos necesarios
-        worker_id = validated_data.pop('worker_id', None)
-        model_variant = validated_data.get('model_variant')
-        
-        # 2. Determinamos cuántas veces vamos a crear el registro
-        # Si es 0.5, creamos 1. Si es 3.0, creamos 3.
-        total_quantity = validated_data.get('quantity', Decimal('1.0'))
-        
-        # Convertimos a entero para el rango (ej: 3.0 -> 3 vueltas)
-        # Si es 0.5, int(0.5) es 0, así que usamos max(1, ...)
-        iterations = max(1, int(total_quantity)) if total_quantity >= 1 else 1
-        
-        # Generamos UN SOLO grupo para toda esta operación asi sea una docena o más
-        registration_group = generate_registration_group()
-        created_dozens = []
+        count = validated_data.pop('count', 1)
+        registration_group = services.generate_registration_group()
+        created = []
 
         with transaction.atomic():
-            for _ in range(iterations):
-                # Generamos un código nuevo para CADA vuelta
-                current_code = generate_dozen_code(model_variant.id)
-                
-                # Creamos la docena individual
-                # Usamos una copia para no alterar los datos originales en cada vuelta
-                temp_data = validated_data.copy()
-                
-                # Si la cantidad era por ejemplo 5.0, cada registro individual vale 1.0
-                # Pero si era 0.5, el registro vale 0.5
-                temp_data['quantity'] = Decimal('1.0') if total_quantity >= 1 else Decimal('0.5')
-                temp_data['code'] = current_code
-                temp_data['registration_group'] = registration_group
+            for _ in range(count):
+                # Un código nuevo por cada docena
+                data = {
+                    **validated_data,
+                    'code': services.generate_dozen_code(validated_data['model']),
+                    'registration_group': registration_group,
+                }
+                created.append(Dozen.objects.create(**data))
 
-                # Si existe un worker_id, significa que la docena está en estado 'CORTADO'
-                if worker_id:
-                    temp_data['status'] = Dozen.Status.CUTTING
-                
-                dozen = Dozen.objects.create(**temp_data)
-                created_dozens.append(dozen)
-
-                # 3. En caso de que exista un worker_id de tipo 'Cortador', creamos la asignación
-                if worker_id:
-                    DozenStageAssignment.objects.create(
-                        dozen=dozen,
-                        worker_id=worker_id,
-                        stage=DozenStageAssignment.Stage.CUTTING,
-                        delivered_at=dozen.registered_at
-                    )
-            
-            # DRF espera que el método create devuelva UNA instancia.
-            # Devolvemos la última o la primera (esto es normal para ViewSets)
-            self._created_dozens = created_dozens
-            return created_dozens[0]
+        # DRF espera UNA instancia; las demás se pueden leer por registration_group
+        self._created_dozens = created
+        return created[0]
 
     def update(self, instance, validated_data):
-        # 1. Extraemos el worker_id (el paracaídas None evita errores)
-        worker_id = validated_data.pop('worker_id', None)
-        
-        with transaction.atomic():
-            # 2. Actualizamos la Docena (instance)
-            # super().update se encarga de guardar cambios en cantidad, material, color, etc.
-            instance = super().update(instance, validated_data)
-            
-            # 3. Lógica de re-asignación
-            if worker_id:
-                # Buscamos si ya existe una asignación para esta docena
-                # Nota: En ShoeFlow, podrías tener varias asignaciones (cortador, aparador, etc.)
-                # Aquí buscamos la que sea de tipo 'PENDIENTE' o 'EN PROCESO' para cambiarla
-                assignment = DozenStageAssignment.objects.filter(
-                    dozen=instance,
-                    # Evitamos cambiar asignaciones que ya están PAGADAS (con settlement)
-                    settlement__isnull=True 
-                ).first()
-                
-                if assignment:
-                    # Si ya existía una, simplemente cambiamos el dueño
-                    assignment.worker_id = worker_id
-                    assignment.save()
-                else:
-                    # Si por alguna razón la docena no tenía asignación, la creamos
-                    DozenStageAssignment.objects.create(
-                        dozen=instance,
-                        worker_id=worker_id,
-                        status=DozenStageAssignment.Status.PENDING
-                    )
-            
-            return instance
+        validated_data.pop('count', None)
+        return super().update(instance, validated_data)
 
 
-def generate_dozen_code(model_variant_id):
-    from apps.tenants.production.models import Dozen
-    from apps.tenants.catalog.models import ModelVariant
+# --- Asignación masiva (entrada) ------------------------------------------
 
-    # 1. Obtener directamente el prefijo guardado en el modelo
-    variant = ModelVariant.objects.select_related('model').get(id=model_variant_id)
-    base_prefix = variant.model.code_prefix.upper()  # Ej: "DOM" o "AIR"
+class AssignStageItemSerializer(serializers.Serializer):
+    specialty = serializers.PrimaryKeyRelatedField(queryset=Specialty.objects.all())
+    worker = serializers.PrimaryKeyRelatedField(queryset=Worker.objects.all())
+    delivered_at = serializers.DateField()
+    completed_at = serializers.DateField()
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
-    # 2. Buscar el último código que empiece exactamente con ese prefijo
-    last_dozen = Dozen.objects.filter(
-        code__startswith=f"{base_prefix}-"
-    ).order_by('-code').first()
 
-    new_sequence_number = 1
+class AssignStagesSerializer(serializers.Serializer):
+    """Cuerpo de POST /dozens/{id}/assign-stages/"""
 
-    if last_dozen:
-        # Extraemos la parte numérica de forma súper segura. 
-        # Como 'base_prefix' no tiene guiones controlados por el usuario, 
-        # rsplit('-', 1) corta únicamente el último guion donde está el número.
-        last_code = last_dozen.code
-        try:
-            last_sequence = int(last_code.rsplit('-', 1)[-1])
-            new_sequence_number = last_sequence + 1
-        except (ValueError, IndexError):
-            new_sequence_number = 1
-
-    # 3. Padding dinámico (mínimo 4 ceros)
-    formatted_sequence = f"{new_sequence_number:04d}" 
-
-    return f"{base_prefix}-{formatted_sequence}"
-
-def generate_registration_group():
-    return f"BATCH-{uuid.uuid4().hex[:8].upper()}"
+    assignments = AssignStageItemSerializer(many=True, allow_empty=False)

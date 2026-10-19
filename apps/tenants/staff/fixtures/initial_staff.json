@@ -1,46 +1,100 @@
 [
   {
-    "model": "staff.team",
+    "model": "staff.specialty",
     "pk": 1,
     "fields": {
-      "name": "Cortador/a",
-      "description": "Equipo encargado del corte de las piezas de cuero.",
+      "name": "Cortado",
+      "description": "Realiza el corte de las piezas de cuero o material sintético para la fabricación del calzado.",
+      "order": 1,
+      "is_active": true,
       "created_at": "2026-04-19T10:00:00Z"
     }
   },
   {
-    "model": "staff.team",
+    "model": "staff.specialty",
     "pk": 2,
     "fields": {
-      "name": "Aparador/a",
-      "description": "Equipo encargado del cosido de las piezas de cuero.",
+      "name": "Pintado",
+      "description": "Realiza el pintado de bordes y piezas del calzado según el proceso de fabricación.",
+      "order": 2,
+      "is_active": false,
       "created_at": "2026-04-19T10:00:00Z"
     }
   },
   {
-    "model": "staff.team",
+    "model": "staff.specialty",
     "pk": 3,
     "fields": {
-      "name": "Armador/a",
-      "description": "Equipo encargado del armado de las piezas de cuero.",
+      "name": "Desbastado",
+      "description": "Reduce el grosor de los bordes de las piezas para facilitar su unión y acabado.",
+      "order": 3,
+      "is_active": false,
       "created_at": "2026-04-19T10:00:00Z"
     }
   },
   {
-    "model": "staff.team",
+    "model": "staff.specialty",
     "pk": 4,
     "fields": {
-      "name": "Rematador/a",
-      "description": "Equipo encargado del rematado de las piezas de cuero.",
+      "name": "Picado",
+      "description": "Realiza operaciones de picado o perforado de las piezas según el diseño del calzado.",
+      "order": 4,
+      "is_active": false,
       "created_at": "2026-04-19T10:00:00Z"
     }
   },
   {
-    "model": "staff.team",
+    "model": "staff.specialty",
     "pk": 5,
     "fields": {
-      "name": "Ayudante",
-      "description": "Equipo encargado de ayudar en los procesos de producción.",
+      "name": "Aparado",
+      "description": "Cose y une las piezas para formar el corte del calzado.",
+      "order": 5,
+      "is_active": true,
+      "created_at": "2026-04-19T10:00:00Z"
+    }
+  },
+  {
+    "model": "staff.specialty",
+    "pk": 6,
+    "fields": {
+      "name": "Armado completo",
+      "description": "Domina integralmente las operaciones de armado del calzado, según el proceso de fabricación correspondiente.",
+      "order": 6,
+      "is_active": false,
+      "created_at": "2026-04-19T10:00:00Z"
+    }
+  },
+  {
+    "model": "staff.specialty",
+    "pk": 7,
+    "fields": {
+      "name": "Armado",
+      "description": "Monta y da forma al corte del calzado sobre la horma como parte del proceso de armado.",
+      "order": 7,
+      "is_active": true,
+      "created_at": "2026-04-19T10:00:00Z"
+    }
+  },
+  {
+    "model": "staff.specialty",
+    "pk": 8,
+    "fields": {
+      "name": "Pegado",
+      "description": "Prepara y pega la planta o suela al calzado mediante el procedimiento de adhesión correspondiente.",
+      "order": 8,
+      "is_active": false,
+      "created_at": "2026-04-19T10:00:00Z"
+    }
+  },
+  {
+    "model": "staff.specialty",
+    "pk": 9,
+    "fields": {
+      "name": "Rematado",
+      "description": "Realiza las operaciones finales de acabado y presentación del calzado.",
+      "order": 9,
+      "is_active": true,
       "created_at": "2026-04-19T10:00:00Z"
     }
   },
@@ -48,80 +102,80 @@
     "model": "staff.worker",
     "pk": 1,
     "fields": {
-      "team": 1,
       "names": "Cortador Default",
       "dni": "71234567",
       "phone": "987654321",
       "address": "Direccion Default",
       "email": "cortador.default@example.com",
-      "password": null,
+      "password": "",
       "is_active": true,
       "created_at": "2026-04-19T10:05:00Z",
-      "updated_at": "2026-04-19T10:05:00Z"
+      "updated_at": "2026-04-19T10:05:00Z",
+      "specialties": [1]
     }
   },
   {
     "model": "staff.worker",
     "pk": 2,
     "fields": {
-      "team": 2,
       "names": "Aparador Default",
       "dni": "71234568",
       "phone": "987654322",
       "address": "Direccion Default",
       "email": "aparador.default@example.com",
-      "password": null,
+      "password": "",
       "is_active": true,
       "created_at": "2026-04-19T10:10:00Z",
-      "updated_at": "2026-04-19T10:10:00Z"
+      "updated_at": "2026-04-19T10:10:00Z",
+      "specialties": [5]
     }
   },
   {
     "model": "staff.worker",
     "pk": 3,
     "fields": {
-      "team": 3,
       "names": "Armador Default",
       "dni": "71234569",
       "phone": "987654323",
       "address": "Direccion Default",
       "email": "armador.default@example.com",
-      "password": null,
+      "password": "",
       "is_active": true,
       "created_at": "2026-04-19T10:15:00Z",
-      "updated_at": "2026-04-19T10:15:00Z"
+      "updated_at": "2026-04-19T10:15:00Z",
+      "specialties": [7]
     }
   },
   {
     "model": "staff.worker",
     "pk": 4,
     "fields": {
-      "team": 4,
       "names": "Rematador Default",
       "dni": "71234570",
       "phone": "987654324",
       "address": "Direccion Default",
       "email": "rematador.default@example.com",
-      "password": null,
+      "password": "",
       "is_active": true,
       "created_at": "2026-04-19T10:20:00Z",
-      "updated_at": "2026-04-19T10:20:00Z"
+      "updated_at": "2026-04-19T10:20:00Z",
+      "specialties": [9]
     }
   },
   {
     "model": "staff.worker",
     "pk": 5,
     "fields": {
-      "team": 5,
       "names": "Ayudante Default",
       "dni": "71234571",
       "phone": "987654325",
       "address": "Direccion Default",
       "email": "ayudante.default@example.com",
-      "password": null,
+      "password": "",
       "is_active": true,
       "created_at": "2026-04-19T10:25:00Z",
-      "updated_at": "2026-04-19T10:25:00Z"
+      "updated_at": "2026-04-19T10:25:00Z",
+      "specialties": []
     }
   }
 ]
