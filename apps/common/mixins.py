@@ -4,6 +4,7 @@ class OptionalPaginationMixin:
             return None
         return super().paginate_queryset(queryset)
 
+
 class ActiveFilterMixin:
     """?is_active=true|false para ocultar los desactivados en los selects."""
  

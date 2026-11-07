@@ -2,15 +2,49 @@ from django.contrib.auth.hashers import make_password
 from django.db import transaction
 from rest_framework import serializers
 
-from apps.tenants.payroll.models import WorkerRateExtra
+from apps.tenants.payroll.models import SpecialtyRate, WorkerRateExtra
+from apps.common.validators import ensure_unique, unique_char_field, unique_iexact
 
 from .models import Specialty, Worker
 
 
 class SpecialtySerializer(serializers.ModelSerializer):
+    name = unique_char_field(Specialty, "Ya existe una especialidad con este nombre")
+    # Solo al crear: precio por docena de la tarifa base de la etapa (se crea junto con ella).
+    # Después se edita desde Tarifas; aquí se ignora al actualizar.
+    base_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=0, write_only=True, required=False
+    )
+
     class Meta:
         model = Specialty
         fields = '__all__'
+
+    def validate_excludes(self, value):
+        # Una etapa no puede excluirse a sí misma
+        if self.instance and any(s.pk == self.instance.pk for s in value):
+            raise serializers.ValidationError('Una etapa no puede excluirse a sí misma.')
+        return value
+    
+    def validate(self, attrs):
+        if self.instance is None and attrs.get('base_price') is None:
+            raise serializers.ValidationError(
+                {'base_price': 'Indica el precio base de la etapa (por docena).'}
+            )
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        base_price = validated_data.pop('base_price')
+        specialty = super().create(validated_data)
+        # Tarifa base: sin ninguna condición, aplica a cualquier docena de la etapa.
+        # Es la red de seguridad: siempre hay un precio aunque ninguna otra regla aplique.
+        SpecialtyRate.objects.create(specialty=specialty, price=base_price)
+        return specialty
+
+    def update(self, instance, validated_data):
+        validated_data.pop('base_price', None)
+        return super().update(instance, validated_data)
 
 
 # --- Extras de tarifa por trabajador (payroll.WorkerRateExtra) ---------------
@@ -39,11 +73,24 @@ class WorkerSerializer(serializers.ModelSerializer):
         required=False,
         write_only=True,
     )
+    dni = unique_char_field(Worker, "Ya existe un trabajador con este número de documento")
+    email = serializers.EmailField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        validators=[unique_iexact(Worker, "Ya existe un trabajador con este email")],
+    )
     password = serializers.CharField(
         write_only=True,
         required=False,
         allow_blank=True,
     )
+
+    # Lectura: cuánto se le debe hoy (trabajo sin pagar +/- ajustes pendientes).
+    # Viene calculado en la consulta de la lista; en crear/editar no se calcula (null).
+    pending_amount = serializers.SerializerMethodField()
+    # Lectura: si ya tiene PIN para el portal (el PIN en sí nunca se envía)
+    has_pin = serializers.SerializerMethodField()
 
     # Lectura: extras que tiene el trabajador, uno por especialidad
     rate_extras = WorkerRateExtraSerializer(many=True, read_only=True)
@@ -67,10 +114,29 @@ class WorkerSerializer(serializers.ModelSerializer):
             "address",
             "email",
             "password",
+            "pending_amount",
+            "has_pin",
             "is_active",
             "created_at",
             "updated_at",
         ]
+
+    def get_pending_amount(self, obj):
+        work = getattr(obj, "pending_work", None)
+        if work is None:
+            return None
+        return str(work + obj.pending_adjustments_total)
+
+    def get_has_pin(self, obj):
+        return bool(obj.password)
+
+    def validate_email(self, value):
+        return value or None  # "" -> NULL
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["email"] = data.get("email") or ""  # el frontend sigue recibiendo "" si no hay correo
+        return data
 
     def validate(self, attrs):
         extras = attrs.get("specialty_extras")
@@ -98,6 +164,7 @@ class WorkerSerializer(serializers.ModelSerializer):
                     {"specialty_extras": f"El trabajador no tiene la especialidad {spec.name}."}
                 )
         return attrs
+
 
     @staticmethod
     def _sync_extras(worker, extras):

@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from apps.common.mixins import OptionalPaginationMixin
 
-from . import services
+from . import dashboard as dashboard_data, services
 from .models import Dozen, DozenStageAssignment
 from .pagination import ProductionPagination
 from .serializers import (
@@ -68,6 +68,15 @@ class DozenViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             raise ValidationError({"detail": "La docena tiene etapas ya pagadas y no se puede eliminar."})
         instance.delete()
 
+    # GET /dozens/dashboard/?weeks=8 -> resumen del dashboard (todo en docenas; weeks: 4, 8, 12 o 26)
+    @action(detail=False, methods=["get"], url_path="dashboard")
+    def dashboard(self, request):
+        try:
+            weeks = int(request.query_params.get("weeks", 8))
+        except ValueError:
+            weeks = 8
+        return Response(dashboard_data.build_dashboard(weeks))
+
     # GET /dozens/{id}/stage-options/ -> datos para pintar el diálogo de asignación
     @action(detail=True, methods=["get"], url_path="stage-options")
     def stage_options(self, request, pk=None):
@@ -105,6 +114,12 @@ class DozenViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return self._detail_response(pk)
 
 
+"""
+ListModelMixin: Permite listar registros.
+RetrieveModelMixin: Permite consultar un registro por ID.
+DestroyModelMixin: Permite eliminar registros.
+GenericViewSet: Proporciona la base para construir el ViewSet.
+"""
 class DozenStageAssignmentViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -118,22 +133,41 @@ class DozenStageAssignmentViewSet(
     pagination_class = None  # Desactiva la paginación global solo aquí
 
     def get_queryset(self):
+        """
+        Construye la consulta de asignaciones aplicando los filtros
+        enviados desde el frontend mediante parámetros URL.
+        """
+
+        # Obtiene el QuerySet inicial definido en queryset.
         qs = super().get_queryset()
+
+        # Obtiene los parámetros enviados en la URL.
+        # Ejemplo: ?worker=5&status=COMPLETED
         params = self.request.query_params
 
-        for param, lookup in (
+        # Relaciona el nombre del parámetro recibido desde React
+        # con el campo de la base de datos que se utilizará para filtrar.
+        filters = (
             ("dozen", "dozen_id"),
             ("worker", "worker_id"),
             ("specialty", "specialty_id"),
             ("status", "status"),
             ("completed_from", "completed_at__gte"),
             ("completed_to", "completed_at__lte"),
-        ):
+        )
+
+        # Recorre los filtros disponibles y aplica únicamente
+        # aquellos que hayan sido enviados con un valor.
+        for param, lookup in filters:
             value = params.get(param)
             if value:
+                # Construye dinámicamente el filtro.
+                # Ejemplo: qs.filter(worker_id=5)
                 qs = qs.filter(**{lookup: value})
 
         # ?unpaid=true -> pendientes de pago (sin liquidación)
+        # Si se solicita unpaid=true, devuelve exclusivamente
+        # las etapas terminadas que todavía no tienen liquidación.
         if params.get("unpaid") == "true":
             qs = qs.filter(settlement__isnull=True)
 

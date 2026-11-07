@@ -9,18 +9,21 @@ from apps.tenants.staff.models import Specialty, Worker
 
 ZERO = Decimal("0")
 
+
 class SpecialtyRate(models.Model):
     """Regla de tarifa: cuánto se paga por DOCENA COMPLETA en una etapa.
 
-    Las condiciones (model, size, material, plant_type) son opcionales:
+    Las condiciones (model, size, material_type, plant_type) son opcionales:
     vacío = "cualquiera". Para una docena aplica la regla MÁS ESPECÍFICA que
-    cumpla (más condiciones coincidentes); en empate de cantidad gana
-    material > plant_type > size > model. Sin regla aplicable no se puede guardar.
+    cumpla (más condiciones coincidentes); en empate de cantidad 
+    gana material_type > plant_type > size > model. Sin regla aplicable no se puede guardar.
     """
 
     specialty = models.ForeignKey(Specialty, on_delete=models.CASCADE, related_name="rates")
-    model = models.ForeignKey(Model, on_delete=models.CASCADE, null=True, blank=True, related_name="rates")
-    size = models.ForeignKey(Size, on_delete=models.CASCADE, null=True, blank=True, related_name="rates")
+    # PROTECT: un modelo o talla con tarifas no se puede borrar (se desactiva). Antes era CASCADE
+    # y borrarlos eliminaba las tarifas sin avisar.
+    model = models.ForeignKey(Model, on_delete=models.PROTECT, null=True, blank=True, related_name="rates")
+    size = models.ForeignKey(Size, on_delete=models.PROTECT, null=True, blank=True, related_name="rates")
     material_type = models.ForeignKey(MaterialType, on_delete=models.PROTECT, null=True, blank=True, related_name="rates")
     plant_type = models.ForeignKey(PlantType, on_delete=models.PROTECT, null=True, blank=True, related_name="rates")
     # Precio por docena (12 pares)

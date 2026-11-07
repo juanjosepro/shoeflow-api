@@ -6,7 +6,9 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+# from apps.tenants.catalog.models import MaterialType, Model, PlantType, Size
 from apps.tenants.production.models import DozenStageAssignment
+from apps.tenants.staff.models import Specialty
 
 from .models import PaymentSettlement, SettlementAdjustment, SpecialtyRate
 
@@ -177,12 +179,27 @@ def sync_model_size_rates(model, rows):
 
     `rows`: lista de dicts {specialty, size, price} (instancias de Specialty y Size).
       - price con valor -> crea o actualiza la regla
-      - price None      -> borra la regla si existía (esa talla vuelve a la tarifa general)
+      - price None      -> borra la regla(fila en bd) si existía (esa talla vuelve a la tarifa general)
     Las combinaciones que no vienen en la lista no se tocan.
     """
+    # Almacena los errores encontrados durante la validación.
+    # Ejemplo: combinaciones repetidas o especialidades inactivas.
     errors = []
+
+    # Almacena las combinaciones (especialidad, talla) que ya fueron procesadas.
+    # Se utiliza para detectar si el frontend envía una misma combinación más de una vez.
+    # Ejemplo: {(5, 3), (5, 4)}
     seen = set()
-    wanted = {}      # (specialty_id, size_id) -> price
+
+    # Almacena las tarifas que deben crearse o actualizarse.
+    # La clave es la combinación (ID de especialidad, ID de talla)
+    # y el valor es el precio recibido.
+    # Ejemplo: {(5, 3): Decimal("15.00"), (5, 4): Decimal("20.00")}
+    wanted = {}
+
+    # Almacena las combinaciones que deben eliminarse de la base de datos
+    # porque el frontend envió price=None (null).
+    # Ejemplo: {(5, 3)}
     to_delete = set()
 
     for row in rows:
@@ -225,3 +242,100 @@ def sync_model_size_rates(model, rows):
 
     SpecialtyRate.objects.bulk_update(to_update, ["price", "updated_at"])
     SpecialtyRate.objects.bulk_create(to_create)
+
+
+# --------------------------------------------------------------------------
+# Tarifa base: red de seguridad de cada etapa
+# --------------------------------------------------------------------------
+
+def specialties_without_base():
+    """Etapas activas sin tarifa base (una regla sin ninguna condición).
+    Con la base automática solo deberían aparecer etapas antiguas."""
+    with_base = SpecialtyRate.objects.filter(
+        model__isnull=True, size__isnull=True, material_type__isnull=True, plant_type__isnull=True
+    ).values_list("specialty_id", flat=True)
+    return list(
+        Specialty.objects.filter(is_active=True).exclude(id__in=with_base).values("id", "name")
+    )
+
+# --------------------------------------------------------------------------
+# Cobertura de tarifas: qué combinaciones no tienen precio
+# --------------------------------------------------------------------------
+
+# def _active(model_class):
+#     """Todos los registros, o solo los activos si la tabla tiene is_active."""
+#     qs = model_class.objects.all()
+#     if any(f.name == "is_active" for f in model_class._meta.get_fields()):
+#         qs = qs.filter(is_active=True)
+#     return list(qs)
+
+
+# def _rule_matches(rule, model_id, size_id, material_id=None, plant_id=None):
+#     """¿La regla aplica? (None en la regla = cualquiera; en la consulta = solo reglas sin esa condición)"""
+#     return (
+#         rule.model_id in (None, model_id)
+#         and rule.size_id in (None, size_id)
+#         and rule.material_type_id in (None, material_id)
+#         and rule.plant_type_id in (None, plant_id)
+#     )
+
+
+# def rate_coverage(specialty_id=None, model_id=None, status=None):
+#     """Revisa cada etapa activa x modelo activo x talla activa y dice si una docena tendría precio.
+
+#     Estados de cada combinación:
+#       - covered: toda docena (con cualquier material y planta activos) encuentra tarifa.
+#       - partial: hay tarifas, pero solo para ciertos materiales o plantas; con otros no habría precio.
+#       - missing: no hay ninguna tarifa que aplique.
+#     Devuelve los totales y, agrupado por etapa + modelo + estado, las tallas con problema.
+#     """
+#     specialties = [s for s in Specialty.objects.filter(is_active=True) if specialty_id in (None, s.id)]
+#     models_ = [m for m in _active(Model) if model_id in (None, m.id)]
+#     sizes = _active(Size)
+#     # Sin materiales o plantas registrados se evalúa solo "sin condición" (None)
+#     materials = [m.id for m in _active(MaterialType)] or [None]
+#     plants = [p.id for p in _active(PlantType)] or [None]
+
+#     rules_by_specialty = {}
+#     for rule in SpecialtyRate.objects.filter(specialty_id__in=[s.id for s in specialties]):
+#         rules_by_specialty.setdefault(rule.specialty_id, []).append(rule)
+
+#     counts = {"covered": 0, "partial": 0, "missing": 0}
+#     groups = []
+
+#     for specialty in specialties:
+#         rules = rules_by_specialty.get(specialty.id, [])
+#         for model in models_:
+#             by_state = {"partial": [], "missing": []}
+#             for size in sizes:
+#                 applicable = [r for r in rules if r.model_id in (None, model.id) and r.size_id in (None, size.id)]
+#                 if not applicable:
+#                     state = "missing"
+#                 elif any(r.material_type_id is None and r.plant_type_id is None for r in applicable):
+#                     state = "covered"
+#                 elif all(
+#                     any(_rule_matches(r, model.id, size.id, mat, plant) for r in applicable)
+#                     for mat in materials
+#                     for plant in plants
+#                 ):
+#                     state = "covered"
+#                 else:
+#                     state = "partial"
+
+#                 counts[state] += 1
+#                 if state != "covered":
+#                     by_state[state].append({"id": size.id, "name": size.name})
+
+#             for state, size_list in by_state.items():
+#                 if size_list and status in (None, state):
+#                     groups.append({
+#                         "specialty": specialty.id,
+#                         "specialty_name": specialty.name,
+#                         "model": model.id,
+#                         "model_name": model.name,
+#                         "status": state,
+#                         "sizes": size_list,
+#                         "all_sizes": len(size_list) == len(sizes),
+#                     })
+
+#     return {"counts": counts, "total": sum(counts.values()), "groups": groups}

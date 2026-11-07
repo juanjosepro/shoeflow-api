@@ -37,7 +37,8 @@ from apps.central.customers.models import Client, Domain
 # Crear el esquema principal (OBLIGATORIO que sea schema_name='public')
 tenant = Client(
     schema_name='public',
-    names='Administrador del Sistema',
+    business_name='Main',
+    owner_names='Administrador del Sistema',
     is_active=True
 )
 tenant.save()
@@ -86,3 +87,8 @@ DROP SCHEMA nombre_del_esquema CASCADE;
 docker compose logs -f
 
 sudo chown -R pau:pau common/
+
+<!-- para acceder al vps mediante el navegador -->
+
+http://129.151.101.128:81/
+juanjosedev@gmail.com

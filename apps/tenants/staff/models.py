@@ -2,12 +2,15 @@ from django.db import models
 
 class Specialty(models.Model):
     """Una etapa del proceso. Las especialidades ACTIVAS son las etapas de la fábrica."""
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
     # Posición en el proceso: define el orden de las filas en el diálogo de
     order = models.PositiveSmallIntegerField(default=0)
     # False = la fábrica no usa esta etapa (no aparece en el diálogo masivo)
     is_active = models.BooleanField(default=True)
+    # Etapas que NO se usan junto con esta (simétrico). Ej.: "Armado completo" excluye
+    # a "Armador" y a "Pegador": una docena se hace de una forma o de la otra.
+    excludes = models.ManyToManyField("self", symmetrical=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -27,7 +30,7 @@ class Worker(models.Model):
     phone = models.CharField(max_length=15, blank=True, default="")
     address = models.CharField(max_length=255, blank=True, default="")
     # OJO: unique + default "" => dos trabajadores sin email chocan (pendiente de revisar)
-    email = models.EmailField(unique=True, blank=True, default="")
+    email = models.EmailField(unique=True, null=True, blank=True, default=None)
     password = models.CharField(max_length=128, blank=True, default="")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

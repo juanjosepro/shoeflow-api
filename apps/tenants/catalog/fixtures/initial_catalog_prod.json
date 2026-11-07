@@ -107,32 +107,6 @@
     }
   },
   {
-    "model": "catalog.model",
-    "pk": 1,
-    "fields": {
-      "category": 4,
-      "name": "Air Max",
-      "code_prefix": "AM",
-      "description": "Línea clásica con cámara de aire",
-      "is_active": true,
-      "created_at": "2026-04-19T10:00:00Z",
-      "updated_at": "2026-04-19T10:00:00Z"
-    }
-  },
-  {
-    "model": "catalog.model",
-    "pk": 2,
-    "fields": {
-      "category": 10,
-      "name": "Jordan Retro",
-      "code_prefix": "JR",
-      "description": "Modelos de alta gama",
-      "is_active": true,
-      "created_at": "2026-04-19T10:00:00Z",
-      "updated_at": "2026-04-19T10:00:00Z"
-    }
-  },
-  {
     "model": "catalog.materialtype",
     "pk": 1,
     "fields": {
@@ -192,7 +166,7 @@
     "pk": 3,
     "fields": {
       "name": "Plomo",
-      "hex_code": "#A9A9A9",
+      "hex_code": "#575557",
       "is_active": true,
       "created_at": "2026-04-19T10:00:00Z",
       "updated_at": "2026-04-19T10:00:00Z"
@@ -203,7 +177,7 @@
     "pk": 4,
     "fields": {
       "name": "Beige",
-      "hex_code": "#D2B48C",
+      "hex_code": "#A88960",
       "is_active": true,
       "created_at": "2026-04-19T10:00:00Z",
       "updated_at": "2026-04-19T10:00:00Z"
@@ -214,7 +188,7 @@
     "pk": 5,
     "fields": {
       "name": "Café",
-      "hex_code": "#8B4513",
+      "hex_code": "#382314",
       "is_active": true,
       "created_at": "2026-04-19T10:00:00Z",
       "updated_at": "2026-04-19T10:00:00Z"
@@ -224,7 +198,7 @@
     "model": "catalog.color",
     "pk": 6,
     "fields": {
-      "name": "Dorado",
+      "name": "Amarillo",
       "hex_code": "#DAA520",
       "is_active": true,
       "created_at": "2026-04-19T10:00:00Z",
@@ -236,7 +210,7 @@
     "pk": 7,
     "fields": {
       "name": "Azul acero",
-      "hex_code": "#483D8B",
+      "hex_code": "#282633",
       "is_active": true,
       "created_at": "2026-04-19T10:00:00Z",
       "updated_at": "2026-04-19T10:00:00Z"

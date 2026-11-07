@@ -4,26 +4,27 @@ from rest_framework.validators import UniqueValidator
 
 from apps.tenants.payroll import services as payroll_services
 from apps.tenants.staff.models import Specialty
+from apps.common.validators import ensure_unique, unique_char_field
 
 from .models import Category, Color, MaterialType, Model, PlantType, Size
 
-def _unique_name(model, message):
-    """Nombre único sin distinguir mayúsculas/minúsculas."""
-    return serializers.CharField(
-        max_length=100,
-        validators=[UniqueValidator(queryset=model.objects.all(), lookup='iexact', message=message)],
-    )
 
 class CategorySerializer(serializers.ModelSerializer):
+    name = unique_char_field(Category, "Ya existe una categoría con este nombre")
+
     class Meta:
         model = Category
         fields = '__all__'
 
 
+
 class SizeSerializer(serializers.ModelSerializer):
+    name = unique_char_field(Size, "Ya existe una talla con este nombre")
+
     class Meta:
         model = Size
         fields = '__all__'
+
 
 class ModelSizeRateSerializer(serializers.Serializer):
     """Una celda del formulario: precio por docena de una especialidad en una talla.
@@ -32,6 +33,7 @@ class ModelSizeRateSerializer(serializers.Serializer):
     specialty = serializers.PrimaryKeyRelatedField(queryset=Specialty.objects.all())
     size = serializers.PrimaryKeyRelatedField(queryset=Size.objects.all())
     price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0, allow_null=True)
+
 
 
 class ModelSerializer(serializers.ModelSerializer):
@@ -46,26 +48,10 @@ class ModelSerializer(serializers.ModelSerializer):
     )
 
     # Valida que el nombre sea único sin importar mayúsculas/minúsculas
-    name = serializers.CharField(
-        max_length=100,
-        validators=[
-            UniqueValidator(
-                queryset=Model.objects.all(),
-                lookup='iexact',  # Case-insensitive exact match
-                message="Ya existe un modelo con este nombre",
-            )
-        ],
-    )
+    name = unique_char_field(Model, "Ya existe un modelo con este nombre")
 
-    code_prefix = serializers.CharField(
-        max_length=10,
-        validators=[
-            UniqueValidator(
-                queryset=Model.objects.all(),
-                lookup='iexact',
-                message="Ya existe un modelo con este prefijo",
-            )
-        ],
+    code_prefix = unique_char_field(
+        Model, "Ya existe un modelo con este prefijo", max_length=10
     )
 
     # Solo escritura: precios por especialidad y talla. Al leer se agrega en to_representation.
@@ -114,7 +100,7 @@ class ModelSerializer(serializers.ModelSerializer):
 
  
 class MaterialTypeSerializer(serializers.ModelSerializer):
-    name = _unique_name(MaterialType, "Ya existe un material con este nombre")
+    name = unique_char_field(MaterialType, "Ya existe un material con este nombre")
  
     class Meta:
         model = MaterialType
@@ -125,7 +111,7 @@ class MaterialTypeSerializer(serializers.ModelSerializer):
  
  
 class PlantTypeSerializer(serializers.ModelSerializer):
-    name = _unique_name(PlantType, "Ya existe un tipo de planta con este nombre")
+    name = unique_char_field(PlantType, "Ya existe un tipo de planta con este nombre")
  
     class Meta:
         model = PlantType
@@ -136,7 +122,7 @@ class PlantTypeSerializer(serializers.ModelSerializer):
  
  
 class ColorSerializer(serializers.ModelSerializer):
-    name = _unique_name(Color, "Ya existe un color con este nombre")
+    name = unique_char_field(Color, "Ya existe un color con este nombre")
  
     class Meta:
         model = Color
@@ -146,12 +132,11 @@ class ColorSerializer(serializers.ModelSerializer):
         return value.strip()
  
     def validate_hex_code(self, value):
-        # El formato ya lo valida el modelo; aquí solo se normaliza a mayúsculas
         value = value.strip().upper()
-        qs = Color.objects.filter(hex_code=value)
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise serializers.ValidationError("Ya existe un color con este código hexadecimal")
+        ensure_unique(
+            Color, 'hex_code', value,
+            "Ya existe un color con este código hexadecimal",
+            instance=self.instance,
+        )
         return value
  

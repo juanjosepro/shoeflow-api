@@ -47,6 +47,31 @@ class SpecialtyRateViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 "plant_type": "plant_type_id",
             },
         )
+        
+    # La tarifa base es el precio de respaldo de la etapa: no se elimina (solo se edita su precio)
+    def perform_destroy(self, instance):
+        if instance.specificity == 0:
+            raise ValidationError(
+                {"detail": "La tarifa base no se puede eliminar: es el precio que se usa cuando ninguna otra tarifa aplica."}
+            )
+        instance.delete()
+
+    # GET /rates/missing-base/ -> etapas activas que aún no tienen tarifa base
+    # (por ejemplo, las creadas antes de que la base fuera automática)
+    @action(detail=False, methods=["get"], url_path="missing-base")
+    def missing_base(self, request):
+        return Response(services.specialties_without_base())
+    # GET /rates/coverage/?specialty=&model=&status=missing|partial
+    # Combinaciones etapa + modelo + talla que no tienen precio (o solo para algunos materiales/plantas)
+    # @action(detail=False, methods=["get"])
+    # def coverage(self, request):
+    #     params = request.query_params
+    #     status_filter = params.get("status")
+    #     return Response(services.rate_coverage(
+    #         specialty_id=int(params["specialty"]) if params.get("specialty", "").isdigit() else None,
+    #         model_id=int(params["model"]) if params.get("model", "").isdigit() else None,
+    #         status=status_filter if status_filter in ("missing", "partial") else None,
+    #     ))
 
 
 class WorkerRateExtraViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):

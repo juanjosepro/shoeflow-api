@@ -32,6 +32,9 @@ class Dozen(models.Model):
     pairs = models.PositiveSmallIntegerField(
         default=12, validators=[MinValueValidator(1), MaxValueValidator(12)]
     )
+    # Serie de tallas opcional: {"38": 2, "39": 3, ...} (talla -> pares). Si existe, suma `pairs`.
+    # Es informativa (ficha y detalle): el precio sigue dependiendo de `size` y `pairs`.
+    size_run = models.JSONField(null=True, blank=True)
     material_type = models.ForeignKey(MaterialType, on_delete=models.PROTECT, related_name="dozens")
     color = models.ForeignKey(Color, on_delete=models.PROTECT, related_name="dozens")
     plant_type = models.ForeignKey(PlantType, on_delete=models.PROTECT, related_name="dozens")

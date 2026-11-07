@@ -14,6 +14,8 @@ from .serializers import (
     SizeSerializer,
 )
 
+
+
 class CatalogViewSet(OptionalPaginationMixin, ActiveFilterMixin, viewsets.ModelViewSet):
     """Base del catálogo: si el registro está en uso responde 400 en vez de error 500."""
  
@@ -25,20 +27,22 @@ class CatalogViewSet(OptionalPaginationMixin, ActiveFilterMixin, viewsets.ModelV
                 {"detail": "No se puede eliminar porque está en uso. Puedes desactivarlo en su lugar."}
             )
 
-class CategoryViewSet(OptionalPaginationMixin, ActiveFilterMixin, viewsets.ModelViewSet):
+
+class CategoryViewSet(CatalogViewSet):
+    # OBLIGATORIO: DRF busca 'queryset' y 'serializer_class' por esos nombres.
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
 
-class SizeViewSet(OptionalPaginationMixin, ActiveFilterMixin, viewsets.ModelViewSet):
+class SizeViewSet(CatalogViewSet):
     queryset = Size.objects.all()
     serializer_class = SizeSerializer
 
 
-class ModelViewSet(OptionalPaginationMixin, ActiveFilterMixin, viewsets.ModelViewSet):
-    # OBLIGATORIO: DRF busca 'queryset' y 'serializer_class' por esos nombres.
+class ModelViewSet(CatalogViewSet):
     queryset = Model.objects.select_related('category').order_by('-created_at')
     serializer_class = ModelSerializer
+
 
 class MaterialTypeViewSet(CatalogViewSet):
     queryset = MaterialType.objects.all()

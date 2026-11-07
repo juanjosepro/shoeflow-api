@@ -19,6 +19,8 @@ class SpecialtyRateSerializer(serializers.ModelSerializer):
     material_type_name = serializers.CharField(source='material_type.name', read_only=True, default=None)
     plant_type_name = serializers.CharField(source='plant_type.name', read_only=True, default=None)
     specificity = serializers.IntegerField(read_only=True)
+    # Tarifa base = sin condiciones: es el precio de la etapa cuando ninguna otra regla aplica
+    is_base = serializers.SerializerMethodField()
 
     class Meta:
         model = SpecialtyRate
@@ -26,11 +28,14 @@ class SpecialtyRateSerializer(serializers.ModelSerializer):
             'id', 'specialty', 'specialty_name',
             'model', 'model_name', 'size', 'size_name',
             'material_type', 'material_type_name', 'plant_type', 'plant_type_name',
-            'price', 'specificity', 'created_at', 'updated_at',
+            'price', 'specificity', 'is_base', 'created_at', 'updated_at',
         ]
         # Desactivamos el validador automático de unicidad: no maneja bien los NULL.
         # La repetición se valida abajo en validate().
         validators = []
+
+    def get_is_base(self, obj):
+        return obj.specificity == 0
 
     def validate(self, attrs):
         def value(name):

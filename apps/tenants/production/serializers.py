@@ -82,6 +82,8 @@ class DozenSerializer(serializers.ModelSerializer):
     registration_group = serializers.CharField(read_only=True)
     # Solo al crear: cuántas docenas idénticas (cada una con su propio código)
     count = serializers.IntegerField(write_only=True, required=False, default=1, min_value=1, max_value=100)
+    # Serie de tallas opcional {talla: pares}; si se envía, debe sumar los pares de la docena
+    size_run = serializers.JSONField(required=False, allow_null=True)
 
     # Campos que fijan el precio de las etapas: no cambian si ya hay asignaciones
     PRICE_FIELDS = ('model', 'size', 'pairs', 'material_type', 'plant_type')
@@ -89,7 +91,7 @@ class DozenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dozen
         fields = [
-            'id', 'model', 'model_id', 'size', 'size_id', 'code', 'pairs', 'fraction',
+            'id', 'model', 'model_id', 'size', 'size_id', 'code', 'pairs', 'size_run', 'fraction',
             'material_type', 'material_type_id', 'color', 'color_id', 'plant_type', 'plant_type_id', 'priority', 'status', 'description',
             'is_active', 'registered_at', 'registration_group', 'created_at',
             'count', 'assignments', 'assigned_stages', 'total_stages',
@@ -97,15 +99,42 @@ class DozenSerializer(serializers.ModelSerializer):
         # El estado solo cambia por las acciones de asignar, completar, rechazar y reabrir
         read_only_fields = ['status']
 
+    def _stage_context(self):
+        # Etapas activas y exclusiones: una sola consulta por respuesta (el serializer hijo se comparte en listas)
+        if not hasattr(self, '_active_ids'):
+            self._active_ids = list(Specialty.objects.filter(is_active=True).values_list('id', flat=True))
+            self._exclusions = services.load_exclusions()
+        return self._active_ids, self._exclusions
+
+    def _progress(self, obj):
+        active_ids, exclusions = self._stage_context()
+        # Usa las asignaciones ya precargadas, sin consultas extra
+        assigned = [a.specialty_id for a in obj.assignments.all()]
+        return services.stage_progress(active_ids, exclusions, assigned)
+
     def get_total_stages(self, obj):
-        # Se calcula una sola vez por respuesta (el serializer hijo se comparte en listas)
-        if not hasattr(self, '_total_stages'):
-            self._total_stages = Specialty.objects.filter(is_active=True).count()
-        return self._total_stages
+        # Etapas que aplican a esta docena (un grupo excluyente sin elegir cuenta como una)
+        return self._progress(obj)['total']
 
     def get_assigned_stages(self, obj):
-        # Usa las asignaciones ya precargadas, sin consultas extra
-        return sum(1 for a in obj.assignments.all() if a.specialty.is_active)
+        return self._progress(obj)['assigned']
+
+    def validate_size_run(self, value):
+        """Serie de tallas: {"38": 2, "39": 3}. Vacío = sin serie."""
+        if not value:
+            return None
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('Formato inválido: se espera {talla: pares}.')
+        clean = {}
+        for key, pairs in value.items():
+            size = str(key).strip()
+            if not size.isdigit() or int(size) <= 0:
+                raise serializers.ValidationError(f'Talla inválida: "{key}".')
+            if isinstance(pairs, bool) or not isinstance(pairs, int) or pairs <= 0:
+                raise serializers.ValidationError(f'Talla {size}: los pares deben ser un entero mayor a 0.')
+            clean[str(int(size))] = pairs
+        # Ordenadas de menor a mayor talla
+        return dict(sorted(clean.items(), key=lambda kv: int(kv[0])))
 
     def validate(self, attrs):
         if self.instance and self.instance.assignments.exists():
@@ -117,6 +146,17 @@ class DozenSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     f"La docena ya tiene etapas asignadas; no se puede cambiar: {', '.join(changed)}."
                 )
+
+        # La serie de tallas debe sumar los pares (también si solo cambian los pares)
+        pairs = attrs.get('pairs', self.instance.pairs if self.instance else 12)
+        if 'size_run' in attrs:
+            size_run = attrs['size_run']
+        else:
+            size_run = self.instance.size_run if self.instance else None
+        if size_run and sum(size_run.values()) != pairs:
+            raise serializers.ValidationError(
+                {'size_run': f'La serie suma {sum(size_run.values())} pares y la docena tiene {pairs}.'}
+            )
         return attrs
 
     def create(self, validated_data):
