@@ -14,4 +14,5 @@ urlpatterns = [
     path('staff/', include('apps.tenants.staff.urls')),
     path('production/', include('apps.tenants.production.urls')),
     path('payroll/', include('apps.tenants.payroll.urls')),
+    path('contact/', include('apps.tenants.contact.urls')),
 ]

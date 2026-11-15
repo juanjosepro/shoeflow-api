@@ -57,6 +57,7 @@ TENANT_APPS = [
     'apps.tenants.staff',
     'apps.tenants.production',
     'apps.tenants.payroll',
+    'apps.tenants.contact',
     'rest_framework.authtoken', # <--- Asegúrate de que esté esta línea
 ]
 

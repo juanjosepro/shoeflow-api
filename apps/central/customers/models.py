@@ -91,10 +91,7 @@ class Client(TenantMixin):
     updated_on = models.DateField(auto_now=True, verbose_name="Fecha de actualización")
 
     auto_create_schema = True
-
-    def delete(self, *args, **kwargs):
-        self.delete_tenant(True)
-        super().delete(*args, **kwargs)
+    auto_drop_schema = True
 
 
 class Domain(DomainMixin):

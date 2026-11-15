@@ -10,6 +10,7 @@ from apps.tenants.catalog.serializers import (
     SizeSerializer,
 )
 from apps.tenants.staff.models import Specialty, Worker
+from apps.tenants.contact.models import Customer, CustomerOrder
 
 from . import services
 from .models import Dozen, DozenStageAssignment
@@ -27,6 +28,20 @@ class SpecialtyMiniSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
     order = serializers.IntegerField()
+
+
+class CustomerMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ['id', 'name', 'document', 'phone', 'is_active']
+        read_only_fields = fields
+
+
+class OrderMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerOrder
+        fields = ['id', 'code']
+        read_only_fields = fields
 
 
 class DozenStageAssignmentSerializer(serializers.ModelSerializer):
@@ -70,8 +85,15 @@ class DozenSerializer(serializers.ModelSerializer):
     )
     plant_type = PlantTypeSerializer(read_only=True)
     plant_type_id = serializers.PrimaryKeyRelatedField(
-        queryset=PlantType.objects.all(), source='plant_type', write_only=True
+        queryset=PlantType.objects.all(), source='plant_type', write_only=True,
+        allow_null=True, required=False,
     )
+    customer = CustomerMiniSerializer(read_only=True)
+    customer_id = serializers.PrimaryKeyRelatedField(
+        queryset=Customer.objects.all(), source='customer', write_only=True,
+        allow_null=True, required=False,
+    )
+    customer_order = OrderMiniSerializer(read_only=True)
     # Fracción de docena (pairs / 12), solo lectura
     fraction = serializers.DecimalField(max_digits=5, decimal_places=4, read_only=True)
     assignments = DozenStageAssignmentSerializer(many=True, read_only=True)
@@ -94,6 +116,7 @@ class DozenSerializer(serializers.ModelSerializer):
             'id', 'model', 'model_id', 'size', 'size_id', 'code', 'pairs', 'size_run', 'fraction',
             'material_type', 'material_type_id', 'color', 'color_id', 'plant_type', 'plant_type_id', 'priority', 'status', 'description',
             'is_active', 'registered_at', 'registration_group', 'created_at',
+            'customer', 'customer_id', 'customer_order',
             'count', 'assignments', 'assigned_stages', 'total_stages',
         ]
         # El estado solo cambia por las acciones de asignar, completar, rechazar y reabrir
@@ -146,6 +169,14 @@ class DozenSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     f"La docena ya tiene etapas asignadas; no se puede cambiar: {', '.join(changed)}."
                 )
+
+        if (
+            self.instance and self.instance.customer_order_id
+            and 'customer' in attrs and attrs['customer'] != self.instance.customer
+        ):
+            raise serializers.ValidationError(
+                {'customer_id': 'Esta docena pertenece a un pedido: cambia el cliente desde el pedido.'}
+            )
 
         # La serie de tallas debe sumar los pares (también si solo cambian los pares)
         pairs = attrs.get('pairs', self.instance.pairs if self.instance else 12)

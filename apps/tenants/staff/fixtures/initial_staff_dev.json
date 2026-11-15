@@ -103,7 +103,7 @@
     "pk": 1,
     "fields": {
       "names": "Cortador Default",
-      "dni": "71234567",
+      "dni": "11111111",
       "phone": "987654321",
       "address": "Direccion Default",
       "email": "cortador.default@example.com",
@@ -118,9 +118,57 @@
     "model": "staff.worker",
     "pk": 2,
     "fields": {
+      "names": "Pintador Default",
+      "dni": "22222222",
+      "phone": "982222321",
+      "address": "Direccion Default",
+      "email": "pintador.default@example.com",
+      "password": "",
+      "is_active": true,
+      "created_at": "2026-04-19T10:05:00Z",
+      "updated_at": "2026-04-19T10:05:00Z",
+      "specialties": [2]
+    }
+  },
+  {
+    "model": "staff.worker",
+    "pk": 3,
+    "fields": {
+      "names": "Desbastador Default",
+      "dni": "33333333",
+      "phone": "987333321",
+      "address": "Direccion Default",
+      "email": "desbastador.default@example.com",
+      "password": "",
+      "is_active": true,
+      "created_at": "2026-04-19T10:05:00Z",
+      "updated_at": "2026-04-19T10:05:00Z",
+      "specialties": [3]
+    }
+  },
+  {
+    "model": "staff.worker",
+    "pk": 4,
+    "fields": {
+      "names": "Picador Default",
+      "dni": "44444444",
+      "phone": "922654321",
+      "address": "Direccion Default",
+      "email": "picador.default@example.com",
+      "password": "",
+      "is_active": true,
+      "created_at": "2026-04-19T10:05:00Z",
+      "updated_at": "2026-04-19T10:05:00Z",
+      "specialties": [4]
+    }
+  },
+  {
+    "model": "staff.worker",
+    "pk": 5,
+    "fields": {
       "names": "Aparador Default",
-      "dni": "71234568",
-      "phone": "987654322",
+      "dni": "55555555",
+      "phone": "987655522",
       "address": "Direccion Default",
       "email": "aparador.default@example.com",
       "password": "",
@@ -132,11 +180,11 @@
   },
   {
     "model": "staff.worker",
-    "pk": 3,
+    "pk": 6,
     "fields": {
       "names": "Armador Default",
-      "dni": "71234569",
-      "phone": "987654323",
+      "dni": "66666666",
+      "phone": "987656623",
       "address": "Direccion Default",
       "email": "armador.default@example.com",
       "password": "",
@@ -148,11 +196,11 @@
   },
   {
     "model": "staff.worker",
-    "pk": 4,
+    "pk": 7,
     "fields": {
       "names": "Rematador Default",
-      "dni": "71234570",
-      "phone": "987654324",
+      "dni": "77777777",
+      "phone": "987677724",
       "address": "Direccion Default",
       "email": "rematador.default@example.com",
       "password": "",
@@ -164,18 +212,50 @@
   },
   {
     "model": "staff.worker",
-    "pk": 5,
+    "pk": 8,
     "fields": {
-      "names": "Ayudante Default",
-      "dni": "71234571",
-      "phone": "987654325",
+      "names": "Juan José Pauccara",
+      "dni": "48617776",
+      "phone": "935257549",
       "address": "Direccion Default",
-      "email": "ayudante.default@example.com",
+      "email": "juanjosepau@example.com",
       "password": "",
       "is_active": true,
-      "created_at": "2026-04-19T10:25:00Z",
-      "updated_at": "2026-04-19T10:25:00Z",
-      "specialties": []
+      "created_at": "2026-04-19T10:10:00Z",
+      "updated_at": "2026-04-19T10:10:00Z",
+      "specialties": [5]
+    }
+  },
+  {
+    "model": "staff.worker",
+    "pk": 9,
+    "fields": {
+      "names": "Marlene",
+      "dni": "48617772",
+      "phone": "935446549",
+      "address": "Direccion Default",
+      "email": "marlene@example.com",
+      "password": "",
+      "is_active": true,
+      "created_at": "2026-04-19T10:10:00Z",
+      "updated_at": "2026-04-19T10:10:00Z",
+      "specialties": [5]
+    }
+  },
+  {
+    "model": "staff.worker",
+    "pk": 11,
+    "fields": {
+      "names": "Nicolas",
+      "dni": "12121212",
+      "phone": "987651212",
+      "address": "Direccion Default",
+      "email": "nicolas@example.com",
+      "password": "",
+      "is_active": true,
+      "created_at": "2026-04-19T10:15:00Z",
+      "updated_at": "2026-04-19T10:15:00Z",
+      "specialties": [1, 2, 3, 4, 5, 6, 7, 8, 9]
     }
   }
 ]

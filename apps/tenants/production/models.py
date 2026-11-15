@@ -7,6 +7,7 @@ from django.db import models
 from apps.tenants.catalog.models import Color, MaterialType, Model, PlantType, Size
 from apps.tenants.payroll.models import PaymentSettlement
 from apps.tenants.staff.models import Specialty, Worker
+from apps.tenants.contact.models import Customer, CustomerOrder
 
 
 class Dozen(models.Model):
@@ -37,7 +38,7 @@ class Dozen(models.Model):
     size_run = models.JSONField(null=True, blank=True)
     material_type = models.ForeignKey(MaterialType, on_delete=models.PROTECT, related_name="dozens")
     color = models.ForeignKey(Color, on_delete=models.PROTECT, related_name="dozens")
-    plant_type = models.ForeignKey(PlantType, on_delete=models.PROTECT, related_name="dozens")
+    plant_type = models.ForeignKey(PlantType, on_delete=models.PROTECT, null=True, blank=True, related_name="dozens")
     priority = models.CharField(max_length=20, choices=Priority.choices, default=Priority.NORMAL)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     description = models.TextField(null=True, blank=True)
@@ -46,6 +47,12 @@ class Dozen(models.Model):
     # Agrupa las docenas creadas en un mismo registro
     registration_group = models.CharField(
         max_length=20, null=True, blank=True, db_index=True, editable=False
+    )
+    customer = models.ForeignKey(
+        Customer, on_delete=models.PROTECT, null=True, blank=True, related_name="dozens"
+    )
+    customer_order = models.ForeignKey(
+        CustomerOrder, on_delete=models.PROTECT, null=True, blank=True, related_name="dozens"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
