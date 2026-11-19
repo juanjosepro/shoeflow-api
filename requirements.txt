@@ -1,8 +1,8 @@
 Django==5.0.4
 psycopg2-binary==2.9.9
-python-dotenv==1.0.1
 djangorestframework==3.15.1
 djangorestframework-simplejwt==5.3.1
 django-tenants==3.7.0
 django-cors-headers==4.7.0
-django-extensions
+gunicorn==22.0.0
+whitenoise==6.7.0
