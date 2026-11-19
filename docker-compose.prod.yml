@@ -1,38 +1,50 @@
 # PRODUCCIÓN (VPS). Nunca se usa en local.
-# Uso: docker compose --env-file /opt/shoeflow/.env.prod -f docker-compose.prod.yml up -d
-# El nombre propio aísla volumen y red de los otros servicios del VPS.
+# Se ejecuta con ./deploy.sh (ya trae los parámetros correctos).
+# "name" aísla volumen y red de los otros servicios del VPS.
 name: shoeflow-prod
 
 services:
   db:
     image: postgres:16-alpine
+    container_name: shoeflow-prod-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    # SIN "ports": la base de datos NO se expone fuera de Docker
+      - postgres_data:/var/lib/postgresql/data   # aquí viven tus datos
+    networks:
+      - internal                                 # solo red privada: sin acceso desde fuera
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       retries: 10
 
   app:
-    build: .                               # usa requirements.txt (sin extras de dev)
+    build: .                                     # usa requirements.txt (sin extras de dev)
+    container_name: shoeflow-prod-api            # NPM usará este nombre como destino
     restart: unless-stopped
     env_file:
-      - /opt/shoeflow/.env.prod            # secretos FUERA del repo
-    ports:
-      - "127.0.0.1:8001:8000"              # solo accesible desde el propio VPS (proxy)
+      - /opt/shoeflow/.env.prod                  # secretos FUERA del repo
+    expose:
+      - "8000"                                   # visible solo dentro de las redes Docker
     depends_on:
       db:
         condition: service_healthy
     command: >
       sh -c "python manage.py collectstatic --noinput &&
              gunicorn core.wsgi:application --bind 0.0.0.0:8000
-             --workers 3 --timeout 60 --access-logfile -"
+             --workers 2 --timeout 60 --access-logfile -"
+    networks:
+      - internal                                 # para hablar con la base de datos
+      - proxy                                    # para que NPM llegue a la API
 
 volumes:
   postgres_data:
+
+networks:
+  internal:                                      # red propia de ShoeFlow
+  proxy:                                         # red de NPM (ya existe, no se crea)
+    external: true
+    name: ${NPM_NETWORK}
