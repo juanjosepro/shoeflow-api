@@ -209,53 +209,5 @@
       "updated_at": "2026-04-19T10:20:00Z",
       "specialties": [9]
     }
-  },
-  {
-    "model": "staff.worker",
-    "pk": 8,
-    "fields": {
-      "names": "Juan José Pauccara",
-      "dni": "48617776",
-      "phone": "935257549",
-      "address": "Direccion Default",
-      "email": "juanjosepau@example.com",
-      "password": "",
-      "is_active": true,
-      "created_at": "2026-04-19T10:10:00Z",
-      "updated_at": "2026-04-19T10:10:00Z",
-      "specialties": [5]
-    }
-  },
-  {
-    "model": "staff.worker",
-    "pk": 9,
-    "fields": {
-      "names": "Marlene",
-      "dni": "48617772",
-      "phone": "935446549",
-      "address": "Direccion Default",
-      "email": "marlene@example.com",
-      "password": "",
-      "is_active": true,
-      "created_at": "2026-04-19T10:10:00Z",
-      "updated_at": "2026-04-19T10:10:00Z",
-      "specialties": [5]
-    }
-  },
-  {
-    "model": "staff.worker",
-    "pk": 11,
-    "fields": {
-      "names": "Nicolas",
-      "dni": "12121212",
-      "phone": "987651212",
-      "address": "Direccion Default",
-      "email": "nicolas@example.com",
-      "password": "",
-      "is_active": true,
-      "created_at": "2026-04-19T10:15:00Z",
-      "updated_at": "2026-04-19T10:15:00Z",
-      "specialties": [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    }
   }
 ]

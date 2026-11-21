@@ -32,10 +32,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: >
+    # Reducir el consumo de RAM del --workers reducidos a 1 para consumir menos RAM. En un nuevo VPS, si se desea se puede aumentar a --workers 2 o 3  
+    command: > 
       sh -c "python manage.py collectstatic --noinput &&
              gunicorn core.wsgi:application --bind 0.0.0.0:8000
-             --workers 2 --timeout 60 --access-logfile -"
+             --workers 1 --timeout 60 --access-logfile -"
     networks:
       - internal                                 # para hablar con la base de datos
       - proxy                                    # para que NPM llegue a la API
@@ -45,6 +46,8 @@ volumes:
 
 networks:
   internal:                                      # red propia de ShoeFlow
+    driver: bridge
+    internal: true
   proxy:                                         # red de NPM (ya existe, no se crea)
     external: true
-    name: ${NPM_NETWORK}
+    name: ${NPM_NETWORK:-proxy_default}
